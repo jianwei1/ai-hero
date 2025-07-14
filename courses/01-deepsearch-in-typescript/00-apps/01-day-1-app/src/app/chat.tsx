@@ -4,19 +4,34 @@ import { ChatMessage } from "~/components/chat-message";
 import { SignInModal } from "~/components/sign-in-modal";
 import { useChat } from "@ai-sdk/react";
 import { Loader2 } from "lucide-react";
+import { useState } from "react";
 
 interface ChatProps {
   userName: string;
+  isAuthenticated: boolean;
 }
 
-export const ChatPage = ({ userName }: ChatProps) => {
+export const ChatPage = ({ userName, isAuthenticated }: ChatProps) => {
+  const [isSignInModalOpen, setSignInModalOpen] = useState(false);
+
   const {
     messages,
     input,
     handleInputChange,
-    handleSubmit,
+    handleSubmit: originalHandleSubmit,
     isLoading,
   } = useChat();
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+  
+    if (!isAuthenticated) {
+      setSignInModalOpen(true);
+      return;
+    }
+  
+    originalHandleSubmit(e);
+  };
 
   return (
     <>
@@ -30,8 +45,7 @@ export const ChatPage = ({ userName }: ChatProps) => {
             return (
               <ChatMessage
                 key={index}
-                text={message.content}
-                role={message.role}
+                message={message}
                 userName={userName}
               />
             );
@@ -66,7 +80,7 @@ export const ChatPage = ({ userName }: ChatProps) => {
         </div>
       </div>
 
-      <SignInModal isOpen={false} onClose={() => {}} />
+      <SignInModal isOpen={isSignInModalOpen} onClose={() => setSignInModalOpen(false)} />
     </>
   );
 };
