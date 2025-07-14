@@ -1,6 +1,6 @@
 import ReactMarkdown, { type Components } from "react-markdown";
 import type { Message } from "ai";
-import { Terminal } from "lucide-react";
+import { Terminal, ExternalLink } from "lucide-react";
 
 export type MessagePart = NonNullable<
   Message["parts"]
@@ -67,7 +67,11 @@ const ToolInvocationPart = ({ part }: { part: MessagePart }) => {
   if (part.type !== "tool-invocation") return null;
 
   const { toolInvocation } = part;
-  const { state, toolName, args } = toolInvocation;
+  const { state, toolName, args } = toolInvocation as {
+    state: string;
+    toolName: string;
+    args: Record<string, unknown>;
+  };
 
   return (
     <div
@@ -107,6 +111,53 @@ const ToolInvocationPart = ({ part }: { part: MessagePart }) => {
   );
 };
 
+const SourcePart = ({ part }: { part: MessagePart }) => {
+  if (part.type !== "source") return null;
+
+  const { source } = part;
+
+  return (
+    <div
+      className="relative mb-4 flex rounded-lg border border-gray-700 bg-gray-800 shadow-lg"
+      aria-label="Search source"
+      role="region"
+    >
+      {/* Left accent bar */}
+      <div className="absolute left-0 top-0 h-full w-1 rounded-l bg-green-500" aria-hidden="true" />
+      <div className="flex flex-col gap-2 p-4 pl-6 w-full">
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-1">
+          <ExternalLink className="size-5 text-green-500" aria-label="Search source" />
+          <span className="font-bold text-gray-100 text-sm" aria-label="Source type">
+            Search Source
+          </span>
+        </div>
+        {/* Source details */}
+        <div>
+          <div className="text-xs font-semibold text-gray-400 mb-1">Source</div>
+          <div className="text-xs bg-gray-900 rounded p-2 border border-gray-700">
+            <div className="text-gray-200 mb-1">
+              <span className="font-semibold">Title:</span> {source.title ?? "No title"}
+            </div>
+            <div className="text-gray-200">
+              <span className="font-semibold">URL:</span>{" "}
+              <a
+                href={source.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-400 underline hover:text-blue-300"
+                aria-label={`Visit source: ${source.title ?? source.url}`}
+              >
+                {source.url}
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const TextPart = ({ part }: { part: MessagePart }) => {
   if (part.type !== "text") return null;
 
@@ -123,6 +174,8 @@ const MessagePartRenderer = ({ part }: { part: MessagePart }) => {
       return <TextPart part={part} />;
     case "tool-invocation":
       return <ToolInvocationPart part={part} />;
+    case "source":
+      return <SourcePart part={part} />;
     default:
       return null;
   }

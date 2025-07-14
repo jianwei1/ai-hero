@@ -5,8 +5,6 @@ import {
 } from "ai";
 import { model } from "~/models";
 import { auth } from "~/server/auth";
-import { z } from "zod";
-import { searchSerper } from "~/serper";
 
 export const maxDuration = 60;
 
@@ -28,29 +26,13 @@ export async function POST(request: Request) {
       const result = streamText({
         model,
         messages,
-        tools: {
-          searchWeb: {
-            parameters: z.object({
-              query: z.string().describe("The query to search the web for"),
-            }),
-            execute: async ({ query }, { abortSignal }) => {
-              const results = await searchSerper(
-                { q: query, num: 10 },
-                abortSignal,
-              );
-              return results.organic.map((result) => ({
-                title: result.title,
-                link: result.link,
-                snippet: result.snippet,
-              }));
-            },
-          },
-        },
-        system: `You are an AI assistant with access to a web search tool. For any question that may require up-to-date information, always use the searchWeb tool. Always cite your sources with inline markdown links, e.g. [source](url). If you use information from a search result, include the link in your answer.`,
+        system: `You are an AI assistant with access to search grounding. For any question that may require up-to-date information, use search grounding to find current information. Always cite your sources with inline markdown links, e.g. [source](url). If you use information from a search result, include the link in your answer.`,
         maxSteps: 10,
       });
 
-      result.mergeIntoDataStream(dataStream);
+      result.mergeIntoDataStream(dataStream, {
+        sendSources: true,
+      });
     },
     onError: (e) => {
       console.error(e);
