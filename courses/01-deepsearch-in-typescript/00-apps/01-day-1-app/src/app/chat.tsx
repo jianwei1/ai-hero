@@ -4,19 +4,24 @@ import { ChatMessage } from "~/components/chat-message";
 import { SignInModal } from "~/components/sign-in-modal";
 import { useChat } from "@ai-sdk/react";
 import { Loader2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { isNewChatCreated } from "~/utils";
+import type { Message } from "ai";
+import { StickToBottom } from "use-stick-to-bottom";
 
 interface ChatProps {
   userName: string;
   isAuthenticated: boolean;
-  chatId: string | undefined;
+  chatId: string;
+  isNewChat: boolean;
+  initialMessages: Message[];
 }
 
-export const ChatPage = ({ userName, isAuthenticated, chatId }: ChatProps) => {
+export const ChatPage = ({ userName, isAuthenticated, chatId, isNewChat, initialMessages }: ChatProps) => {
   const [isSignInModalOpen, setSignInModalOpen] = useState(false);
   const router = useRouter();
+
 
   const {
     messages,
@@ -25,10 +30,13 @@ export const ChatPage = ({ userName, isAuthenticated, chatId }: ChatProps) => {
     handleSubmit: originalHandleSubmit,
     isLoading,
     data,
+
   } = useChat({
     body: {
       chatId,
+      isNewChat,
     },
+    initialMessages,
   });
 
   // Handle new chat creation and redirect
@@ -54,21 +62,27 @@ export const ChatPage = ({ userName, isAuthenticated, chatId }: ChatProps) => {
   return (
     <>
       <div className="flex flex-1 flex-col">
-        <div
-          className="mx-auto w-full max-w-[65ch] flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-track-gray-800 scrollbar-thumb-gray-600 hover:scrollbar-thumb-gray-500"
-          role="log"
-          aria-label="Chat messages"
+        <StickToBottom
+          className="flex-1 overflow-hidden"
+          resize="smooth"
+          initial="smooth"
         >
-          {messages.map((message, index) => {
-            return (
-              <ChatMessage
-                key={index}
-                message={message}
-                userName={userName}
-              />
-            );
-          })}
-        </div>
+          <StickToBottom.Content 
+            className="mx-auto w-full max-w-[65ch] p-4 [&>div]:scrollbar-thin [&>div]:scrollbar-track-gray-800 [&>div]:scrollbar-thumb-gray-600 [&>div]:hover:scrollbar-thumb-gray-500" 
+            role="log" 
+            aria-label="Chat messages"
+          >
+            {messages.map((message, index) => {
+              return (
+                <ChatMessage
+                  key={index}
+                  message={message}
+                  userName={userName}
+                />
+              );
+            })}
+          </StickToBottom.Content>
+        </StickToBottom>
 
         <div className="border-t border-gray-700">
           <form

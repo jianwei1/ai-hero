@@ -51,23 +51,16 @@ export const upsertChat = async (opts: {
 export const getChat = async (opts: { userId: string; chatId: string }) => {
   const { userId, chatId } = opts;
 
- const chat = await db.query.chats.findFirst({
-  where: and(eq(chats.id, chatId), eq(chats.userId, userId)),
-  with: {
-    messages: {
-      orderBy: (messages, { asc }) => [asc(messages.order)],
+  const chat = await db.query.chats.findFirst({
+    where: and(eq(chats.id, chatId), eq(chats.userId, userId)),
+    with: {
+      messages: {
+        orderBy: (messages, { asc }) => [asc(messages.order)],
+      },
     },
-  },
-});
-  if (!chat) return null;
-  const msgs = await db.query.messages.findMany({
-    where: eq(messages.chatId, chatId),
-    orderBy: [messages.order],
   });
-  return {
-    ...chat,
-    messages: msgs,
-  };
+  
+  return chat;
 };
 
 export const getChats = async (opts: { userId: string }) => {

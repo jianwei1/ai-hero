@@ -23,27 +23,26 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as {
     messages: Array<Message>;
-    chatId?: string;
+    chatId: string;
+    isNewChat: boolean;
   };
 
-  const { messages, chatId } = body;
+  const { messages, chatId, isNewChat } = body;
 
-  // Create a new chat if no chatId is provided
-  const currentChatId = chatId || crypto.randomUUID();
   const chatTitle = messages[messages.length - 1]?.content?.slice(0, 100) || "New Chat";
 
-  // Create the chat early before streaming starts
-  if (!chatId) {
+  // Create the chat early before streaming starts if this is a new chat
+  if (isNewChat) {
     await upsertChat({
       userId: session.user.id,
-      chatId: currentChatId,
+      chatId,
       title: chatTitle,
       messages,
     });
   } else {
     // Verify the chat belongs to the user
     const chat = await db.query.chats.findFirst({
-      where: eq(chats.id, currentChatId),
+      where: eq(chats.id, chatId),
     });
     if (!chat || chat.userId !== session.user.id) {
       return new Response("Chat not found or unauthorized", { status: 404 });
@@ -53,10 +52,10 @@ export async function POST(request: Request) {
   return createDataStreamResponse({
     execute: async (dataStream) => {
       // Send the new chat ID if this is a new chat
-      if (!chatId) {
+      if (isNewChat) {
         dataStream.writeData({
           type: "NEW_CHAT_CREATED",
-          chatId: currentChatId,
+          chatId,
         });
       }
 
@@ -94,7 +93,7 @@ export async function POST(request: Request) {
           // Save the updated messages to the database
           upsertChat({
             userId: session.user.id,
-            chatId: currentChatId,
+            chatId,
             title: chatTitle,
             messages: updatedMessages,
           }).catch((error) => {
