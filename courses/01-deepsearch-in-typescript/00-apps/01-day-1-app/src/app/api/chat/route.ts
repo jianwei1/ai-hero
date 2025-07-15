@@ -52,6 +52,14 @@ export async function POST(request: Request) {
 
   return createDataStreamResponse({
     execute: async (dataStream) => {
+      // Send the new chat ID if this is a new chat
+      if (!chatId) {
+        dataStream.writeData({
+          type: "NEW_CHAT_CREATED",
+          chatId: currentChatId,
+        });
+      }
+
       const result = streamText({
         model,
         messages,
