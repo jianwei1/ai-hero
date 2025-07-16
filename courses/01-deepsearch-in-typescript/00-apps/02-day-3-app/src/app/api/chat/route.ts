@@ -12,6 +12,12 @@ import { upsertChat } from "~/server/db/queries";
 import { eq } from "drizzle-orm";
 import { db } from "~/server/db";
 import { chats } from "~/server/db/schema";
+import { Langfuse } from "langfuse";
+import { env } from "~/env";
+
+const langfuse = new Langfuse({
+  environment: env.NODE_ENV,
+});
 
 export const maxDuration = 60;
 
@@ -34,6 +40,9 @@ export async function POST(request: Request) {
     return new Response("No messages provided", { status: 400 });
   }
 
+  // Determine the current chat ID - if it's a new chat, we'll create one
+  let currentChatId = chatId;
+  
   // If this is a new chat, create it with the user's message
   if (isNewChat) {
     await upsertChat({
@@ -51,6 +60,13 @@ export async function POST(request: Request) {
       return new Response("Chat not found or unauthorized", { status: 404 });
     }
   }
+
+  // Create Langfuse trace with session and user information
+  const trace = langfuse.trace({
+    sessionId: currentChatId,
+    name: "chat",
+    userId: session.user.id,
+  });
 
   return createDataStreamResponse({
     execute: async (dataStream) => {
@@ -114,9 +130,16 @@ Remember to use the searchWeb tool whenever you need to find current information
             title: lastMessage.content.slice(0, 50) + "...",
             messages: updatedMessages,
           });
+
+          // Flush the trace to Langfuse
+          await langfuse.flushAsync();
         },
         experimental_telemetry: {
           isEnabled: true,
+          functionId: `agent`,
+          metadata: {
+            langfuseTraceId: trace.id,
+          },
         },
       });
 
