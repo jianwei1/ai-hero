@@ -7,6 +7,7 @@ import {
 import { model } from "~/model";
 import { auth } from "~/server/auth";
 import { searchSerper } from "~/serper";
+import { bulkCrawlWebsites } from "~/scraper";
 import { z } from "zod";
 import { upsertChat } from "~/server/db/queries";
 import { eq } from "drizzle-orm";
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
   }
 
   // Determine the current chat ID - if it's a new chat, we'll create one
-  let currentChatId = chatId;
+  const currentChatId = chatId;
   
   // If this is a new chat, create it with the user's message
   if (isNewChat) {
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
         model,
         messages,
         maxSteps: 10,
-        system: `You are a helpful AI assistant with access to real-time web search capabilities. When answering questions:
+        system: `You are a helpful AI assistant with access to real-time web search and web scraping capabilities. When answering questions:
 
 1. Always search the web for up-to-date information when relevant
 2. ALWAYS format URLs as markdown links using the format [title](url)
@@ -90,8 +91,13 @@ export async function POST(request: Request) {
 4. If you're unsure about something, search the web to verify
 5. When providing information, always include the source where you found it using markdown links
 6. Never include raw URLs - always use markdown link format
+7. When you find relevant URLs from search results, use the scrapePages tool to extract the full content of those pages for more detailed analysis
+8. The scrapePages tool will return the full text content of web pages in markdown format, allowing you to provide more comprehensive answers
+9. IMPORTANT: When scraping pages, be aggressive and comprehensive - scrape 4-6 URLs per query to get diverse perspectives and thorough coverage
+10. Always select a diverse set of sources from different websites, domains, and perspectives to provide balanced information
+11. Prioritize scraping over just using search snippets - the full content is much more valuable for detailed analysis
 
-Remember to use the searchWeb tool whenever you need to find current information.`,
+Remember to use the searchWeb tool whenever you need to find current information, and use the scrapePages tool when you need to analyze the full content of specific web pages. Be thorough in your scraping approach to provide the most comprehensive answers possible.`,
         tools: {
           searchWeb: {
             parameters: z.object({
@@ -110,6 +116,33 @@ Remember to use the searchWeb tool whenever you need to find current information
               }));
             },
           },
+          scrapePages: {
+            parameters: z.object({
+              urls: z.array(z.string()).describe("The URLs to scrape"),
+            }),
+            execute: async ({ urls }, { abortSignal }) => {
+              const results = await bulkCrawlWebsites({ urls });
+          
+              if (!results.success) {
+                return {
+                  error: results.error,
+                  results: results.results.map(({ url, result }) => ({
+                    url,
+                    success: result.success,
+                    data: result.success ? result.data : result.error,
+                  })),
+                };
+              }
+          
+              return {
+                results: results.results.map(({ url, result }) => ({
+                  url,
+                  success: result.success,
+                  data: result.data,
+                })),
+              };
+            }
+          }
         },
         onFinish: async ({ response }) => {
           // Merge the existing messages with the response messages
