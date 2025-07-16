@@ -79,11 +79,27 @@ export async function POST(request: Request) {
         });
       }
 
+      // Get current date and time for date awareness
+      const currentDate = new Date().toISOString();
+      const formattedDate = new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZoneName: 'short'
+      });
+
       const result = streamText({
         model,
         messages,
         maxSteps: 10,
-        system: `You are a helpful AI assistant with access to real-time web search and web scraping capabilities. When answering questions:
+        system: `You are a helpful AI assistant with access to real-time web search and web scraping capabilities. 
+
+CURRENT DATE AND TIME: ${formattedDate} (${currentDate})
+
+When answering questions:
 
 1. Always search the web for up-to-date information when relevant
 2. ALWAYS format URLs as markdown links using the format [title](url)
@@ -96,6 +112,9 @@ export async function POST(request: Request) {
 9. IMPORTANT: When scraping pages, be aggressive and comprehensive - scrape 4-6 URLs per query to get diverse perspectives and thorough coverage
 10. Always select a diverse set of sources from different websites, domains, and perspectives to provide balanced information
 11. Prioritize scraping over just using search snippets - the full content is much more valuable for detailed analysis
+12. IMPORTANT: When users ask for "up to date" information, "latest" news, "current" events, or anything time-sensitive, use the current date (${formattedDate}) to provide context about how recent the information is
+13. When search results include publication dates, mention them to help users understand how current the information is
+14. For time-sensitive queries like weather, sports scores, stock prices, or breaking news, emphasize the importance of real-time data
 
 Remember to use the searchWeb tool whenever you need to find current information, and use the scrapePages tool when you need to analyze the full content of specific web pages. Be thorough in your scraping approach to provide the most comprehensive answers possible.`,
         tools: {
@@ -113,6 +132,7 @@ Remember to use the searchWeb tool whenever you need to find current information
                 title: result.title,
                 link: result.link,
                 snippet: result.snippet,
+                date: result.date, // Include publication date if available
               }));
             },
           },
