@@ -4,7 +4,7 @@ import { registerOTel } from "@vercel/otel";
 
 export function register() {
   registerOTel({
-    serviceName: "deepsearch-course",
+    serviceName: "langfuse-vercel-ai-nextjs-example",
     traceExporter: new LangfuseExporter({
       environment: env.NODE_ENV,
     }),
